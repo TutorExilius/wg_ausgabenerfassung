@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>674</width>
-    <height>462</height>
+    <width>822</width>
+    <height>635</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -232,6 +232,7 @@
              </property>
              <property name="font">
               <font>
+               <family>Calibri</family>
                <pointsize>14</pointsize>
               </font>
              </property>
@@ -515,18 +516,12 @@
              <property name="minimumSize">
               <size>
                <width>80</width>
-               <height>40</height>
+               <height>60</height>
               </size>
              </property>
              <property name="maximumSize">
               <size>
                <width>80</width>
-               <height>60</height>
-              </size>
-             </property>
-             <property name="sizeIncrement">
-              <size>
-               <width>0</width>
                <height>60</height>
               </size>
              </property>
@@ -626,13 +621,13 @@
            </item>
            <item row="3" column="1">
             <widget class="QPushButton" name="pushButton_comma">
-             <property name="maximumSize">
+             <property name="minimumSize">
               <size>
                <width>60</width>
                <height>60</height>
               </size>
              </property>
-             <property name="sizeIncrement">
+             <property name="maximumSize">
               <size>
                <width>60</width>
                <height>60</height>

@@ -1,12 +1,17 @@
+import asyncio
+from datetime import datetime
 from enum import auto, Enum
+from typing import List
+from pathlib import Path
 
-from logic.helper import print_log
+from logic.helper import amount_in_cents_to_str, print_log, sync_database
 from PyQt5 import QtCore
-from PyQt5.QtWidgets import QWizard
+from PyQt5.QtWidgets import QWidget, QWizard
+from src.logic.database import add_amount, get_total_amount_in_cents
 
 from .input_page import InputPage
 from .start_page import StartPage
-
+from src.globals import DATABASE_FILE, SYNC_NAS_DIR
 
 class PageNumber(Enum):
     START_PAGE = auto()
@@ -14,14 +19,22 @@ class PageNumber(Enum):
 
 
 class MainWizard(QWizard):
-    def __init__(self, parent=None, desktop_size=None):
-        super().__init__(parent)  # , QtCore.Qt.Tool)
+    def __init__(self, parent: QWidget = None, desktop_size: QtCore.QSize = None, users: List[str] = None):
+        super().__init__(parent)
 
+        self.users = users
         self._pages = {}
+
         self.setButtonLayout([])
 
         self._pages[PageNumber.START_PAGE] = self.addPage(StartPage(self))
         self._pages[PageNumber.INPUT_PAGE] = self.addPage(InputPage(self))
+
+        start_page = self.page(self._pages[PageNumber.START_PAGE])
+        start_page.pushButton_name_1.setText(self.users[0])
+        start_page.pushButton_name_2.setText(self.users[1])
+
+        self.update_amounts()
 
         self.setModal(False)
 
@@ -35,6 +48,20 @@ class MainWizard(QWizard):
         # connections
         self.page(self._pages[PageNumber.START_PAGE]).leave_start_page.connect(self.leave_start_page)
         self.page(self._pages[PageNumber.INPUT_PAGE]).leave_input_page.connect(self.leave_input_page)
+
+    def update_amounts(self):
+        start_page = self.page(self._pages[PageNumber.START_PAGE])
+
+        user_1_total_cents = get_total_amount_in_cents(
+            user_name=self.users[0],
+            year=datetime.year
+        )
+        user_2_total_cents = get_total_amount_in_cents(
+            user_name=self.users[1],
+            year=datetime.year
+        )
+        start_page.label_amount_1.setText(amount_in_cents_to_str(user_1_total_cents))
+        start_page.label_amount_2.setText(amount_in_cents_to_str(user_2_total_cents))
 
     @QtCore.pyqtSlot(str)
     def leave_start_page(self, user_name):
@@ -70,10 +97,23 @@ class MainWizard(QWizard):
         input_page.label_name.setText(user_name)
 
     def back_and_save(self, user_name: str, amount: str) -> None:
-        amount = amount.removesuffix("€").strip()
-        amount = amount.replace(",", "")
+        amount = amount.replace("€", "").strip()
+        amount = int(amount.replace(",", ""))  # remove comma to interpret as cent
 
         super(MainWizard, self).back()
+
+        if amount > 0:
+            add_amount(
+                user_name=user_name,
+                amount_in_cents=amount,
+            )
+            self.update_amounts()
+
+            print("Try syncing database...")
+            src_database = Path(__file__).parent.parent.parent / DATABASE_FILE
+            target_database = Path(SYNC_NAS_DIR)
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(sync_database(src_database, target_database))
 
     def back(self, user_name: str) -> None:
         super(MainWizard, self).back()

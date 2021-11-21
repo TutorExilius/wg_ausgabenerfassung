@@ -1,17 +1,17 @@
 import asyncio
 from datetime import datetime
 from enum import auto, Enum
-from typing import List
 from pathlib import Path
+from typing import List
 
-from logic.helper import amount_in_cents_to_str, print_log, sync_database
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QWidget, QWizard
-from src.logic.database import add_amount, get_total_amount_in_cents
+from src import globals
+from src.logic.database import add_amount, get_total_amount_in_cents, get_oldest_year
+from src.logic.helper import amount_in_cents_to_str, print_log, sync_database
+from src.view.input_page import InputPage
+from src.view.start_page import StartPage
 
-from .input_page import InputPage
-from .start_page import StartPage
-from src.globals import DATABASE_FILE, SYNC_NAS_DIR
 
 class PageNumber(Enum):
     START_PAGE = auto()
@@ -19,22 +19,22 @@ class PageNumber(Enum):
 
 
 class MainWizard(QWizard):
-    def __init__(self, parent: QWidget = None, desktop_size: QtCore.QSize = None, users: List[str] = None):
+    def __init__(self, parent: QWidget = None, desktop_size: QtCore.QSize = None, user_names: List[str] = None):
         super().__init__(parent)
 
-        self.users = users
+        self.user_names = user_names
         self._pages = {}
 
         self.setButtonLayout([])
 
-        self._pages[PageNumber.START_PAGE] = self.addPage(StartPage(self))
+        self._pages[PageNumber.START_PAGE] = self.addPage(StartPage(self, user_names))
         self._pages[PageNumber.INPUT_PAGE] = self.addPage(InputPage(self))
 
         start_page = self.page(self._pages[PageNumber.START_PAGE])
-        start_page.pushButton_name_1.setText(self.users[0])
-        start_page.pushButton_name_2.setText(self.users[1])
+        start_page.pushButton_name_1.setText(self.user_names[0])
+        start_page.pushButton_name_2.setText(self.user_names[1])
 
-        self.update_amounts()
+        self.update_year_label(datetime.utcnow().year)
 
         self.setModal(False)
 
@@ -49,17 +49,41 @@ class MainWizard(QWizard):
         self.page(self._pages[PageNumber.START_PAGE]).leave_start_page.connect(self.leave_start_page)
         self.page(self._pages[PageNumber.INPUT_PAGE]).leave_input_page.connect(self.leave_input_page)
 
+    def update_year_label(self, year: int) -> None:
+        start_page = self.page(self._pages[PageNumber.START_PAGE])
+        start_page.label_year.setText(str(year))
+        self.update_amounts()
+
     def update_amounts(self):
         start_page = self.page(self._pages[PageNumber.START_PAGE])
+        selected_year = int(start_page.label_year.text())
 
-        user_1_total_cents = get_total_amount_in_cents(
-            user_name=self.users[0],
-            year=datetime.year
-        )
+        self.cents = get_total_amount_in_cents(user_name=self.user_names[0], year=selected_year)
+        user_1_total_cents = self.cents
         user_2_total_cents = get_total_amount_in_cents(
-            user_name=self.users[1],
-            year=datetime.year
+            user_name=self.user_names[1],
+            year=selected_year
         )
+
+        oldest_year = get_oldest_year()
+
+        total_user_1 = 0
+        total_user_2 = 0
+
+        for year in range(oldest_year, selected_year):
+            user_1_year_amount_in_cents = get_total_amount_in_cents(self.user_names[0], year)
+            user_2_year_amount_in_cents = get_total_amount_in_cents(self.user_names[1], year)
+
+            total_user_1 += user_1_year_amount_in_cents
+            total_user_2 += user_2_year_amount_in_cents
+
+        minimum_amount = min(total_user_1, total_user_2)
+        total_user_1 -= minimum_amount
+        total_user_2 -= minimum_amount
+
+        user_1_total_cents += total_user_1
+        user_2_total_cents += total_user_2
+
         start_page.label_amount_1.setText(amount_in_cents_to_str(user_1_total_cents))
         start_page.label_amount_2.setText(amount_in_cents_to_str(user_2_total_cents))
 
@@ -110,10 +134,10 @@ class MainWizard(QWizard):
             self.update_amounts()
 
             print("Try syncing database...")
-            src_database = Path(__file__).parent.parent.parent / DATABASE_FILE
-            target_database = Path(SYNC_NAS_DIR)
+            src_database = Path(__file__).parent.parent.parent / globals.DATABASE_FILE
+            target_database = Path(globals.SYNC_NAS_DIR)
             loop = asyncio.get_event_loop()
-            loop.run_until_complete(sync_database(src_database, target_database))
+            loop.create_task(sync_database(src_database, target_database))
 
     def back(self, user_name: str) -> None:
         super(MainWizard, self).back()

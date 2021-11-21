@@ -1,6 +1,9 @@
 import asyncio
 from datetime import datetime
-from shutil import copy2, copyfile
+from pathlib import Path
+from shutil import copy2
+
+TRY_SYNCING = False
 
 
 def print_log(page_name: str, user_name: str, action: str) -> None:
@@ -27,16 +30,26 @@ def amount_in_cents_to_str(amount_in_cents: int) -> str:
     return amount + " €"
 
 
-async def sync_database(soure_database_file: str, target_database_file: str) -> None:
-    while True:
+async def sync_database(soure_database_file: Path, target_database_file: Path) -> None:
+    if not soure_database_file.is_file():
+        raise FileNotFoundError(f"File not found '{soure_database_file}'")
+
+    if not target_database_file.is_dir():
+        raise NotADirectoryError(f"Directory not found '{soure_database_file}'")
+
+    global TRY_SYNCING
+
+    while not TRY_SYNCING:
         try:
+            TRY_SYNCING = True
             copy2(soure_database_file, target_database_file)
             print("Database synced.")
+            TRY_SYNCING = False
             break
         except Exception as e:
-            secs = 15
-            print("Failed sync.")
+            secs = 60
+            print("Failed sync.\n")
             print(e)
-            print(f"Retry in {secs} sec...")
+            print(f"\nRetry in {secs} sec...")
 
             await asyncio.sleep(secs)

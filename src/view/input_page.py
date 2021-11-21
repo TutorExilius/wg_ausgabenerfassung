@@ -1,13 +1,13 @@
 from functools import partial
 from pathlib import Path
 
-from logic.helper import max_digits_behind_comma_arrived
 from PyQt5 import uic
 from PyQt5.QtCore import pyqtSignal, QCoreApplication
 from PyQt5.QtWidgets import QListWidgetItem, QWizard, QWizardPage
-from view.input_back_and_save_dialog import InputBackAndSaveDialog
-from view.input_back_dialog import InputBackDialog
-from view.remove_entries_dialog import RemoveEntriesDialog
+from src.logic.helper import max_digits_behind_comma_arrived
+from src.view.input_back_and_save_dialog import InputBackAndSaveDialog
+from src.view.input_back_dialog import InputBackDialog
+from src.view.remove_entries_dialog import RemoveEntriesDialog
 
 
 class InputPage(QWizardPage):

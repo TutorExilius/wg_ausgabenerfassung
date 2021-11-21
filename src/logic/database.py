@@ -1,12 +1,13 @@
 from typing import List
+from datetime import datetime
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from src.globals import DATABASE_URL
-from src.model.models import User, Entry
+from src import globals
+from src.model.models import Entry, User
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(globals.DATABASE_URL)
 
 
 def initialise_users(user_names: List[str]) -> None:
@@ -43,4 +44,25 @@ def get_total_amount_in_cents(user_name: str, year: int) -> int:
         if user is None:
             raise ValueError(f"Can't update amount for user '{user_name}', User not found.")
 
-        return sum(entry.amount_in_cents for entry in user.entries)
+        entries_in_year = (entry.amount_in_cents for entry in user.entries if entry.created_at.year == year)
+        return sum(entry for entry in entries_in_year)
+
+def get_oldest_year() -> int:
+    with Session(engine) as session:
+        user_names = globals.USERS
+
+        oldest_year = datetime.utcnow().year
+
+        for user_name in user_names:
+            user = session.query(User).filter_by(user_name=user_name).one_or_none()
+
+            if user is None:
+                raise ValueError(f"Can't update amount for user '{user_name}', User not found.")
+
+            if user.entries:
+                year = user.entries[0].created_at.year
+                if oldest_year > year:
+                    oldest_year = year
+
+    return oldest_year
+

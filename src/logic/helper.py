@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from shutil import copy2
 
-TRY_SYNCING = False
+in_syncing_lock = asyncio.Lock()
 
 
 def print_log(page_name: str, user_name: str, action: str) -> None:
@@ -37,19 +37,16 @@ async def sync_database(soure_database_file: Path, target_database_file: Path) -
     if not target_database_file.is_dir():
         raise NotADirectoryError(f"Directory not found '{soure_database_file}'")
 
-    global TRY_SYNCING
+    async with in_syncing_lock:
+        while True:
+            try:
+                copy2(soure_database_file, target_database_file)
+                print("Database synced.")
+                break
+            except Exception as e:
+                secs = 60
+                print("Failed sync.\n")
+                print(e)
+                print(f"\nRetry in {secs} sec...")
 
-    while not TRY_SYNCING:
-        try:
-            TRY_SYNCING = True
-            copy2(soure_database_file, target_database_file)
-            print("Database synced.")
-            TRY_SYNCING = False
-            break
-        except Exception as e:
-            secs = 60
-            print("Failed sync.\n")
-            print(e)
-            print(f"\nRetry in {secs} sec...")
-
-            await asyncio.sleep(secs)
+                await asyncio.sleep(secs)

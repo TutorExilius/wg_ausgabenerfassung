@@ -2,6 +2,9 @@ import asyncio
 from datetime import datetime
 from pathlib import Path
 from shutil import copy2
+from aiofile import async_open
+
+from src import globals
 
 in_syncing_lock = asyncio.Lock()
 
@@ -40,7 +43,11 @@ async def sync_database(soure_database_file: Path, target_database_file: Path) -
     async with in_syncing_lock:
         while True:
             try:
-                copy2(soure_database_file, target_database_file)
+                async with async_open(soure_database_file, "rb") as src, \
+                        async_open(target_database_file / globals.DATABASE_FILE, "wb") as dest:
+                    async for chunk in src.iter_chunked(65535):
+                        await dest.write(chunk)
+
                 print("Database synced.")
                 break
             except Exception as e:

@@ -7,7 +7,7 @@ from typing import List
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QWidget, QWizard
 from src import globals
-from src.logic.database import add_amount, get_total_amount_in_cents, get_oldest_year
+from src.logic.database import add_amount, get_oldest_year, get_total_amount_in_cents
 from src.logic.helper import amount_in_cents_to_str, print_log, sync_database
 from src.view.input_page import InputPage
 from src.view.start_page import StartPage
@@ -58,8 +58,10 @@ class MainWizard(QWizard):
         start_page = self.page(self._pages[PageNumber.START_PAGE])
         selected_year = int(start_page.label_year.text())
 
-        self.cents = get_total_amount_in_cents(user_name=self.user_names[0], year=selected_year)
-        user_1_total_cents = self.cents
+        user_1_total_cents = get_total_amount_in_cents(
+            user_name=self.user_names[0],
+            year=selected_year
+        )
         user_2_total_cents = get_total_amount_in_cents(
             user_name=self.user_names[1],
             year=selected_year
